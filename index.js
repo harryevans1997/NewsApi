@@ -1,9 +1,10 @@
-const PORT = process.env.PORT || 8000;
 const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const { sportsJargon } = require("./libs/keywords/sports");
+
 const app = express();
+const PORT = process.env.PORT || 8000;
 
 const newspapers = [
   {
@@ -19,6 +20,7 @@ const newspapers = [
 ];
 
 const articles = [];
+exports.articles = articles;
 
 newspapers.forEach((newspaper) => {
   axios
