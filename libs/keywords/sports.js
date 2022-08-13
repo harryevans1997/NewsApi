@@ -21,6 +21,7 @@ const sportsJargon = [
   "draw",
   "event",
   "fan",
+  "football",
   "field",
   "fitness",
   "goal",

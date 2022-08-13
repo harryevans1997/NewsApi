@@ -17,6 +17,11 @@ const newspapers = [
     address: "https://www.si.com/",
     base: "https://www.si.com",
   },
+  {
+    name: "nytimes",
+    address: "https://www.nytimes.com/section/sports",
+    base: "https://www.nytimes.com/",
+  },
 ];
 
 const articles = [];
@@ -29,7 +34,26 @@ newspapers.forEach((newspaper) => {
       const html = response.data;
       const $ = cheerio.load(html);
 
-      // searched each <a> and checks if the first child (and descendants) contains any of the sports keywords
+      if (newspaper.name === "nytimes") {
+        $("h2 > a", html).each(function () {
+          const spanText = $(this).text().toLowerCase();
+          sportsJargon.forEach((word) => {
+            if (spanText.includes(word)) {
+              const title = $(this).text();
+              const url = $(this).attr("href");
+              if (!articles.find((obj) => obj.title === title)) {
+                articles.push({
+                  title,
+                  url: url.includes("https") ? url : newspaper.base + url,
+                  source: newspaper.name,
+                });
+              }
+            }
+          });
+        });
+      }
+
+      // searches each <a> and checks if the first child (and descendants) contains any of the sports keywords
       $("a > :first-child", html).each(function () {
         const spanText = $(this).text().toLowerCase();
 
@@ -51,7 +75,7 @@ newspapers.forEach((newspaper) => {
                   articles.push({
                     title: filteredTitle.trim(),
                     url: url.includes("https") ? url : newspaper.base + url,
-                    source: "wsj",
+                    source: newspaper.name,
                   });
                 }
                 // otherwise just push the article as it is to the article array
@@ -65,6 +89,7 @@ newspapers.forEach((newspaper) => {
                 }
               }
             }
+            return;
           });
         }
 
@@ -86,33 +111,103 @@ newspapers.forEach((newspaper) => {
     .catch((err) => console.log(err));
 });
 
+// root path that welcomes users
 app.get("/", (req, res) => {
   res.json("Welcome to my Sports News API");
 });
 
+// returns all news articles
 app.get("/news", (req, res) => {
   res.json(articles);
 });
 
+// returns news articles from a specific newspaper
 app.get("/news/:newspaperId", (req, res) => {
   const newspaperId = req.params.newspaperId;
 
-  const newspaperAddress = newspapers.filter(
+  // returns the filtered newspaper based on what the user puts as the URI
+  const newspaper = newspapers.filter(
     (newspaper) => newspaper.name == newspaperId
-  )[0].address;
-  const newspaperBase = newspapers.filter(
-    (newspaper) => newspaper.name == newspaperId
-  )[0].base;
+  )[0];
+  console.log(newspaper);
 
+  // fetch from the filtered newspaper starts here
   axios
-    .get(newspaperAddress)
+    .get(newspaper.address)
     .then((response) => {
       const html = response.data;
       const $ = cheerio.load(html);
       const filteredArticles = [];
 
+      // logic that returns the filtered response for the nytimes
+      if (newspaper.name === "nytimes") {
+        // searched all <h2> for their <a> and checks if either contain any of the sports keywords
+        $("h2 > a", html).each(function () {
+          const spanText = $(this).text().toLowerCase();
+          sportsJargon.forEach((word) => {
+            if (spanText.includes(word)) {
+              const title = $(this).text();
+              const url = $(this).attr("href");
+              if (!filteredArticles.find((obj) => obj.title === title)) {
+                filteredArticles.push({
+                  title,
+                  url: url.includes("https") ? url : newspaper.base + url,
+                  source: newspaper.name,
+                });
+              }
+            }
+          });
+        });
+        res.json(filteredArticles);
+        return;
+      }
+
+      // logic that returns the filtered response for the wsj
+      if (newspaper.name === "wsj") {
+        // searches each <a> and checks if the first child (and descendants) contains any of the sports keywords
+        $("a > :first-child", html).each(function () {
+          const spanText = $(this).text().toLowerCase();
+          sportsJargon.forEach((word) => {
+            if (spanText.includes(word)) {
+              const title = $(this).text();
+              const url = $(this).parents().attr("href");
+
+              const regex = /(\d{1})[^\d]*min read/;
+              const matched = title.match(regex);
+              // if the selected article title contains the extra text, filter it out
+              if (matched) {
+                const badSubstring = matched[0];
+                const splitTitle = title.split(badSubstring);
+                const filteredTitle = splitTitle[0];
+                if (!filteredArticles.find((obj) => obj.url === url)) {
+                  filteredArticles.push({
+                    title: filteredTitle.trim(),
+                    url: url.includes("https") ? url : newspaper.base + url,
+                    source: newspaper.name,
+                  });
+                }
+                // otherwise just push the article as it is to the article array
+              } else {
+                if (!filteredArticles.find((obj) => obj.url === url)) {
+                  filteredArticles.push({
+                    title,
+                    url: url.includes("https") ? url : newspaper.base + url,
+                    source: newspaper.name,
+                  });
+                }
+              }
+            }
+          });
+        });
+        res.json(filteredArticles);
+        return;
+      }
+
+      // currently, all other newspapers can be filtered using this logic
+      // searches each <a> and checks if the first child (and descendants) contains any of the sports keywords
       $("a > :first-child", html).each(function () {
         const spanText = $(this).text().toLowerCase();
+
         sportsJargon.forEach((word) => {
           if (spanText.includes(word)) {
             const title = $(this).text();
@@ -120,8 +215,8 @@ app.get("/news/:newspaperId", (req, res) => {
             if (!filteredArticles.find((obj) => obj.title === title)) {
               filteredArticles.push({
                 title,
-                url: url.includes("https") ? url : newspaperBase + url,
-                source: newspaperId,
+                url: url.includes("https") ? url : newspaper.base + url,
+                source: newspaper.name,
               });
             }
           }
