@@ -1,4 +1,4 @@
-export default sportsJargon = [
+const sportsJargon = [
   "arena",
   "amateur",
   "athlete",
@@ -63,3 +63,5 @@ export default sportsJargon = [
   "victory",
   "whistle",
 ];
+
+exports.sportsJargon = sportsJargon;

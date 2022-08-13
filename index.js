@@ -2,6 +2,7 @@ const PORT = process.env.PORT || 8000;
 const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");
+const { sportsJargon } = require("./libs/keywords/sports");
 const app = express();
 
 const newspapers = [
@@ -19,35 +20,23 @@ newspapers.forEach((newspaper) => {
     const html = response.data;
     const $ = cheerio.load(html);
 
-    $("a > span", html).each(function () {
+    // searched each <a> and checks if the first child (and descendants) contains any of the sports keywords
+    $("a > :first-child", html).each(function () {
       const spanText = $(this).text().toLowerCase();
-      if (spanText.includes("series")) {
-        const title = $(this).text();
-        const url = $(this).parents().attr("href");
-        articles.push({
-          title,
-          url: newspaper.base + url,
-          source: newspaper.name,
-        });
-      }
-      if (spanText.includes("cup")) {
-        const title = $(this).text();
-        const url = $(this).parents().attr("href");
-        articles.push({
-          title,
-          url: newspaper.base + url,
-          source: newspaper.name,
-        });
-      }
-      if (spanText.includes("coach")) {
-        const title = $(this).text();
-        const url = $(this).parents().attr("href");
-        articles.push({
-          title,
-          url: newspaper.base + url,
-          source: newspaper.name,
-        });
-      }
+
+      sportsJargon.forEach((word) => {
+        if (spanText.includes(word)) {
+          const title = $(this).text();
+          const url = $(this).parents().attr("href");
+          if (!articles.find((obj) => obj.title === title)) {
+            articles.push({
+              title,
+              url: newspaper.base + url,
+              source: newspaper.name,
+            });
+          }
+        }
+      });
     });
   });
 });
@@ -57,6 +46,8 @@ app.get("/", (req, res) => {
 });
 
 app.get("/news", (req, res) => {
+  console.log(res);
+  console.log(sportsJargon);
   res.json(articles);
 });
 
